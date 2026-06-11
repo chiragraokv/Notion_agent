@@ -51,7 +51,6 @@ Current tasks:
 {to_do}
 new task user wantes to do :
 {new_task}
-schedule them according to the guidelines and goals above. If you need to create, update, or delete tasks, use the appropriate tools with the necessary parameters.
                 """
 
     response = client.chat.completions.create(
@@ -67,7 +66,7 @@ schedule them according to the guidelines and goals above. If you need to create
 
 def main():
     task = parse_tasks()
-    message = get_daily_scheduling(task,new_task = "I want to learn how SNNs are trained, I want to learn to make a UI for agentic ai project, I want to go through quad RL project")
+    message = get_daily_scheduling(task,new_task = "i need to sleep more (this is a recurring task)")
     if message.tool_calls:
         for call in message.tool_calls:
             function_name = call.function.name
