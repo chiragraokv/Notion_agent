@@ -17,7 +17,10 @@ Currently the whole project is running locally. In stage 2 it will have a better
     * [] interactive box inside notion for agent to work with
     FEATURES
     - [] the agent shold be exposed to minimal information and should use the tools to explore the pages (token usage optimization)
+     * [] methods to handle this exploration
     - [x] every callout is a direct input to the llm. it serves as a interface. scrape for it to send it to llm
     - [x] quotes are for the llm to post general information and reply to user
     TOOLS
-    - [] access the projects and a brief description
+    - [x] create and fetch functions for within the project
+    - [] update functions for all
+    - [x] access the projects and a brief description

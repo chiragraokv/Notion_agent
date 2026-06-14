@@ -64,9 +64,12 @@ new task user wantes to do :
 
     return response.choices[0].message
 
+
+
+
 def main():
     task = parse_tasks()
-    message = get_daily_scheduling(task,new_task = "i need to sleep more (this is a recurring task)")
+    message = get_daily_scheduling(task,new_task = "make cookies, eat cookies, feel sad about loosing cookies, make more cookies, also add recipie for the cookies")
     if message.tool_calls:
         for call in message.tool_calls:
             function_name = call.function.name
