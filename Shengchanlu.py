@@ -1,10 +1,9 @@
 from notion_client import Client
 import os
-notion = Client(auth=os.environ["NOTION_TOKEN"])    
-main_page = "0274df83f4bd83c0a5f2814b848a34c6"
 import json
 from datetime import datetime
 
+notion = Client(auth=os.environ["NOTION_TOKEN"])    
 
 def get_callout_text(page_id):
     blocks = notion.blocks.children.list(block_id=page_id)
@@ -89,8 +88,6 @@ def create_project(name,emoji="🚀",description="",status="Planned"):
             "property": "object"
         }
     )
-
-
     if not results["results"]:
         raise ValueError("Projects data source not found")
 
@@ -129,7 +126,57 @@ def create_project(name,emoji="🚀",description="",status="Planned"):
                 }
             }
         }
-    )    
+    ) 
+   
+def update_project(page_id,name=None,description=None,status=None,emoji=None):
+    properties = {}
+
+    if name is not None:
+        properties["Name"] = {
+            "title": [
+                {
+                    "text": {
+                        "content": name
+                    }
+                }
+            ]
+        }
+
+    if description is not None:
+        properties["Description"] = {
+            "rich_text": [
+                {
+                    "text": {
+                        "content": description
+                    }
+                }
+            ]
+        }
+
+    if status is not None:
+        properties["Status"] = {
+            "status": {
+                "name": status
+            }
+        }
+
+    payload = {"page_id": page_id}
+
+    if properties:
+        payload["properties"] = properties
+
+    if emoji is not None:
+        payload["icon"] = {
+            "type": "emoji",
+            "emoji": emoji
+        }
+
+    notion.pages.update(**payload)
+
+    return {
+        "success": True,
+        "page_id": page_id
+    }
 
 def get_project_task(project_id):
     page = notion.pages.retrieve(project_id)
@@ -146,8 +193,22 @@ def get_project_task(project_id):
         priority = (properties.get("Priority", {}).get("status", {}).get("name"))
         due_date = (properties.get("Due", {}).get("date", {}))
         due_date = due_date.get("start") if due_date else None
-        list_task.append({"name": name,"status": status,"priority": priority,"due_date": due_date,})
+        list_task.append({"task_id": t,"name": name,"status": status,"priority": priority,"due_date": due_date,})
     return json.dumps(list_task,indent=2)
+
+
+def update_task(task_page_id,name=None,status=None,priority=None,due_date=None):
+    properties = {}
+    if name is not None:
+        properties["Name"] = {"title": [{"text": {"content": name}}]}
+    if status is not None:
+        properties["Status"] = {"status": {"name": status}}
+    if priority is not None:
+        properties["Priority"] = {"status": {"name": priority}}
+    if due_date is not None:
+        properties["Due"] = {"date": {"start": due_date}}
+    return notion.pages.update(page_id=task_page_id,properties=properties)
+
 
 def memory(date = None):
     #beta
@@ -190,23 +251,11 @@ def add_to_memory( note_text: str):
         filter={
             "value": "data_source",
             "property": "object"
-        }
-    )
+            })
     data_source_id = results["results"][0]["id"]
     return notion.pages.create(
         parent={"data_source_id": data_source_id},
-        properties={
-            "Notes": {
-                "title": [
-                    {
-                        "text": {
-                            "content": note_text
-                        }
-                    }
-                ]
-            }
-        }
-    )
+        properties={"Notes": {"title": [{"text": {"content": note_text}}]}})
 
 
 
@@ -265,21 +314,135 @@ def create_task_for_project(project_id,name,status="To Do",priority="Medium",due
         properties=properties
     )
 
-def analyze():
-    #beta 
-    #this is a boolean function that the llm can use to continue processing 
-    #the idea is to let the llm build context and explore database
-    #this should reduce the amount of data exposed to llm in long term
-    return True
+def analyze(
+    rethink: bool,missing_information: str = ""):
+    print(missing_information)
+    return rethink
+        
+def paragraph(text):
+    return {
+        "object": "block",
+        "type": "paragraph",
+        "paragraph": {
+            "rich_text": [
+                {
+                    "type": "text",
+                    "text": {"content": text}
+                }
+            ]
+        }
+    }
+
+def heading1(text):
+    return {
+        "object": "block",
+        "type": "heading_1",
+        "heading_1": {
+            "rich_text": [
+                {
+                    "type": "text",
+                    "text": {"content": text}
+                }
+            ]
+        }
+    }
+
+def heading2(text):
+    return {
+        "object": "block",
+        "type": "heading_2",
+        "heading_2": {
+            "rich_text": [
+                {
+                    "type": "text",
+                    "text": {"content": text}
+                }
+            ]
+        }
+    }
+
+def bullet(text):
+    return {
+        "object": "block",
+        "type": "bulleted_list_item",
+        "bulleted_list_item": {
+            "rich_text": [
+                {
+                    "type": "text",
+                    "text": {"content": text}
+                }
+            ]
+        }
+    }
+
+def checkbox(text, checked=False):
+    return {
+        "object": "block",
+        "type": "to_do",
+        "to_do": {
+            "rich_text": [
+                {
+                    "type": "text",
+                    "text": {"content": text}
+                }
+            ],
+            "checked": checked
+        }
+    }
+
+def image(url):
+    return {
+        "object": "block",
+        "type": "image",
+        "image": {
+            "type": "external",
+            "external": {
+                "url": url
+            }
+        }
+    }
+PAGE_BLOCK_FUNCTIONS = {
+    "p": paragraph,
+    "img": image,
+    "h1": heading1,
+    "h2": heading2,
+    "todo": checkbox,
+    "b": bullet
+}
+
+def add_blocks(page_id, llm_blocks):
+    blocks = []
+
+    for block in llm_blocks:
+        block_type = block["type"]
+
+        if block_type not in PAGE_BLOCK_FUNCTIONS:
+            continue
+
+        blocks.append(
+            PAGE_BLOCK_FUNCTIONS[block_type](
+                block["value"]
+            )
+        )
+
+    return notion.blocks.children.append(
+        block_id=page_id,
+        children=blocks
+    )
 
     
 
 def main():
-    # print(get_callout_text("0274df83f4bd83c0a5f2814b848a34c6"))
-    # send_text("0274df83f4bd83c0a5f2814b848a34c6", "rovin is gay")
-    # create_project("notion agent",description="A smart notion personal assistant ")
-    # add_to_memory("this is a test")
-    print(get_project_task("37c4df83-f4bd-8153-a266-e074a6adbbbc"))
-    create_task_for_project("37c4df83-f4bd-8153-a266-e074a6adbbbc","testing create")
+
+    # update_project("37c4df83-f4bd-8153-a266-e074a6adbbbc","this is a updated project")
+    # update_task("37b4df83f4bd80e7aa2aefbe87fa047d","this is updated name")
+    llm_block = [
+    {"type": "h1", "value": "Results"},
+    {"type": "p", "value": "Training complete"},
+    {"type": "b", "value": "FID = 34"},
+    {"type": "b", "value": "LPIPS = 0.12"},
+    {"type": "img", "value": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT6sGD7JTZnzScm52XzpJVzKAP1f1wJyXj5G6Brpj7-HQ&s=10"}
+]
+    add_blocks("37b4df83-f4bd-8073-b70b-d0c16c61ca10", llm_block)
 if __name__ == "__main__":
     main()
