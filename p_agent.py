@@ -87,7 +87,7 @@ def interact(message,fetch = None,model = "gpt-4.1",):
            set analyze to true if more info is needed along with query functions. it is important to explore the pages before creating anything to avoid duplicates"""
     if fetch:
         message += "\n\nRequested data:\n"
-        message += json.dumps(fetch, indent=2)
+        message += json.dumps(fetch, indent=2)  
     response = client.chat.completions.create(
        model=model,
        messages=[
@@ -129,10 +129,7 @@ def interact(message,fetch = None,model = "gpt-4.1",):
 
 def main():
     print("asd")
-    models = client.models.list()
-    for m in models.data:
-        print(m.id)
-    # interact(message="give a comparision bw cnns and snns with image examples in the task using add_blocks function for me to read inside the task", model="gpt-4o-mini")
+    interact(message="make a new research task about snns,give a comparision bw cnns and snns with image examples in the task using add_blocks function for me to read inside the task", model="gpt-4o-mini")
 if __name__ == "__main__":
     main()
      

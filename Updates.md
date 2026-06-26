@@ -25,9 +25,11 @@ Currently the whole project is running locally. In stage 2 it will have a better
     - [x] update functions for all
     - [x] access the projects and a brief description
 ### Stage 3 
-- [] integrateing a local LLM for unristricted usage
+- [] integrateing a local LLM for unristricted usage (dropped)
     * might be slow (no gpu)
 - [] customise the UI 
-- [] use mem0ai for memory and context management
-- [] start using tools like langchain
+- [x] start using tools like langchain
+- [x] make a simple tool using agent to using langchain and grpah
+- [x] use chroma vector db to store memory (future project: build cpp based fast vector db)
+- [x] useing Gemini AI with langchain
 

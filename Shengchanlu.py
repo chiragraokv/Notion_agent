@@ -2,8 +2,11 @@ from notion_client import Client
 import os
 import json
 from datetime import datetime
+from langchain.tools import tool
+from typing import Literal
 
 notion = Client(auth=os.environ["NOTION_TOKEN"])    
+
 
 def get_callout_text(page_id):
     blocks = notion.blocks.children.list(block_id=page_id)
@@ -43,7 +46,9 @@ def send_text(page_id, message):
         }
     )
 
+@tool
 def get_all_projects():
+    "Used to get all Projects from NOTION"
     results = notion.search(
         query="Projects",
         filter={
@@ -80,7 +85,9 @@ def get_all_projects():
         pro.append(proj)
     return json.dumps(pro,indent=2)
 
+@tool
 def create_project(name,emoji="🚀",description="",status="Planned"):
+    "Create a new project for the user, use only if project not present"
     results = notion.search(
         query="Projects",
         filter={
@@ -127,8 +134,10 @@ def create_project(name,emoji="🚀",description="",status="Planned"):
             }
         }
     ) 
-   
-def update_project(page_id,name=None,description=None,status=None,emoji=None):
+
+@tool   
+def update_project(page_id:str,name:str|None = None,description:str|None=None,status: Literal["Not Started","In Progress","Completed"] | None = None,emoji:str|None=None):
+    "Used to update exsisting projects, use correct page_id to access the project"
     properties = {}
 
     if name is not None:
@@ -178,7 +187,9 @@ def update_project(page_id,name=None,description=None,status=None,emoji=None):
         "page_id": page_id
     }
 
-def get_project_task(project_id):
+@tool
+def get_project_task(project_id:str):
+    "each project can have sub task, get information about same"
     page = notion.pages.retrieve(project_id)
     task_ids = [
     rel["id"]
@@ -197,7 +208,9 @@ def get_project_task(project_id):
     return json.dumps(list_task,indent=2)
 
 
-def update_task(task_page_id,name=None,status=None,priority=None,due_date=None):
+@tool
+def update_task(task_page_id,name:str|None=None,status:Literal["done","not done"]|None=None,priority:str|None=None,due_date:str|None=None):
+    "Update a exsisting task inside a project, use the tasks page id to access it"
     properties = {}
     if name is not None:
         properties["Name"] = {"title": [{"text": {"content": name}}]}
@@ -209,57 +222,9 @@ def update_task(task_page_id,name=None,status=None,priority=None,due_date=None):
         properties["Due"] = {"date": {"start": due_date}}
     return notion.pages.update(page_id=task_page_id,properties=properties)
 
-
-def memory(date = None):
-    #beta
-    #this is to give temporal contex to ai
-    results = notion.search(
-        query="Cache",
-        filter={
-            "value": "data_source",
-            "property": "object"
-        }
-    )
-    data_source_id = results["results"][0]["id"]
-    memory_db = notion.data_sources.query(
-        data_source_id=data_source_id
-    )["results"]
-    memory_list = []
-    cutoff = None
-    if date:
-        cutoff = datetime.fromisoformat(
-            date.replace("Z", "+00:00")
-        )
-    for page in memory_db:
-        notes = "".join(
-        item["plain_text"]
-        for item in page["properties"]["Notes"]["title"])
-        last_edited = page.get("last_edited_time",{})
-        if cutoff:
-            edited_dt = datetime.fromisoformat(
-                last_edited.replace("Z", "+00:00")
-            )
-
-            if edited_dt < cutoff:
-                continue
-        memory_list.append({last_edited:notes})
-    return json.dumps(memory_list,indent=2)
-        
-def add_to_memory( note_text: str):
-    results = notion.search(
-        query="Cache",
-        filter={
-            "value": "data_source",
-            "property": "object"
-            })
-    data_source_id = results["results"][0]["id"]
-    return notion.pages.create(
-        parent={"data_source_id": data_source_id},
-        properties={"Notes": {"title": [{"text": {"content": note_text}}]}})
-
-
-
-def create_task_for_project(project_id,name,status="To Do",priority="Medium",due_date=None,emoji="📋"):
+@tool
+def create_task_for_project(project_id:str,name,status="To Do",priority="Medium",due_date=None,emoji="📋"):
+    "used to create a task under a project"
     project_page = notion.pages.retrieve(project_id)
     task_relations = project_page["properties"]["Tasks"]["relation"]
     if not task_relations:
@@ -314,11 +279,6 @@ def create_task_for_project(project_id,name,status="To Do",priority="Medium",due
         properties=properties
     )
 
-def analyze(
-    rethink: bool,missing_information: str = ""):
-    print(missing_information)
-    return rethink
-        
 def paragraph(text):
     return {
         "object": "block",
@@ -410,7 +370,28 @@ PAGE_BLOCK_FUNCTIONS = {
     "b": bullet
 }
 
+@tool
 def add_blocks(page_id, llm_blocks):
+    """
+    Append blocks to a Notion page.
+
+    Block types:
+    p: paragraph
+    h1: heading1
+    h2: heading2
+    b: bullet
+    todo: checkbox
+    img: image (URL)
+
+    llm_blocks format:
+    [
+        {"type": "p", "value": "Example paragraph"},
+        {"type": "h1", "value": "Title"},
+        {"type": "todo", "value": "Buy milk"},
+        {"type": "img", "value": "https://..."}
+    ]
+    """
+    
     blocks = []
 
     for block in llm_blocks:

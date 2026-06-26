@@ -68,21 +68,4 @@ def checkbox(text, checked=False):
             "checked": checked
         }
     }
-
-def image(url, caption=""):
-    return {
-        "object": "block",
-        "type": "image",
-        "image": {
-            "type": "external",
-            "external": {
-                "url": url
-            },
-            "caption": [
-                {
-                    "type": "text",
-                    "text": {"content": caption}
-                }
-            ]
-        }
-    }
+    
